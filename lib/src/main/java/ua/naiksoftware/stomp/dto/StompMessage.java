@@ -86,11 +86,12 @@ public class StompMessage {
             headers.add(new StompHeader(matcher.group(1), matcher.group(2)));
         }
 
-        reader.skip("\n\n");
-
+        try {
+            reader.skip("\n\n");
+        } catch (java.lang.Exception exception) {
+        }
         reader.useDelimiter(TERMINATE_MESSAGE_SYMBOL);
         String payload = reader.hasNext() ? reader.next() : null;
-
         return new StompMessage(command, headers, payload);
     }
 
