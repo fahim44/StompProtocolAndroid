@@ -18,13 +18,13 @@ import io.reactivex.Flowable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.subjects.BehaviorSubject;
 import io.reactivex.subjects.PublishSubject;
+import ua.naiksoftware.stomp.dto.LifecycleEvent;
 import ua.naiksoftware.stomp.dto.StompCommand;
+import ua.naiksoftware.stomp.dto.StompHeader;
 import ua.naiksoftware.stomp.dto.StompMessage;
 import ua.naiksoftware.stomp.pathmatcher.PathMatcher;
 import ua.naiksoftware.stomp.pathmatcher.SimplePathMatcher;
 import ua.naiksoftware.stomp.provider.ConnectionProvider;
-import ua.naiksoftware.stomp.dto.LifecycleEvent;
-import ua.naiksoftware.stomp.dto.StompHeader;
 
 /**
  * Created by naik on 05.05.16.
@@ -49,6 +49,7 @@ public class StompClient {
     private PublishSubject<LifecycleEvent> lifecyclePublishSubject;
     private List<StompHeader> headers;
     private HeartBeatTask heartBeatTask;
+    private String callBackActionClass;
 
     public StompClient(ConnectionProvider connectionProvider) {
         this.connectionProvider = connectionProvider;
@@ -81,6 +82,11 @@ public class StompClient {
      */
     public StompClient withClientHeartbeat(int ms) {
         heartBeatTask.setClientHeartbeat(ms);
+        return this;
+    }
+
+    public StompClient callBackActionClass(String callBackActionClass) {
+        this.callBackActionClass = callBackActionClass;
         return this;
     }
 
@@ -228,6 +234,8 @@ public class StompClient {
                     getConnectionStream().onComplete();
                     getMessageStream().onComplete();
                     lifecyclePublishSubject.onNext(new LifecycleEvent(LifecycleEvent.Type.CLOSED));
+                    heartBeatTask.shutdown();
+                    new SocketAction(callBackActionClass).call();
                 });
     }
 
@@ -241,10 +249,10 @@ public class StompClient {
         else if (!streamMap.containsKey(destPath))
             streamMap.put(destPath,
                     subscribePath(destPath, headerList).andThen(
-                    getMessageStream()
-                            .filter(msg -> pathMatcher.matches(destPath, msg))
-                            .toFlowable(BackpressureStrategy.BUFFER)
-                            .share()).doFinally(() -> unsubscribePath(destPath).subscribe())
+                            getMessageStream()
+                                    .filter(msg -> pathMatcher.matches(destPath, msg))
+                                    .toFlowable(BackpressureStrategy.BUFFER)
+                                    .share()).doFinally(() -> unsubscribePath(destPath).subscribe())
             );
         return streamMap.get(destPath);
     }
